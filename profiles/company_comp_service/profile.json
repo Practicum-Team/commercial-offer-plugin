@@ -1,0 +1,45 @@
+{
+  "profile_version": "1.0",
+  "company": {
+    "name": "ООО «ТехноРешение»",
+    "short_name": "ТехноРешение",
+    "industry": "Компьютерный сервис",
+    "description": "Сервисная компания по ремонту и обслуживанию компьютерной техники, настройке сетей, установке и сопровождению программного обеспечения, а также поставке комплектующих и расходных материалов.",
+    "contact_person": "Петров Иван Сергеевич"
+  },
+  "defaults": {
+    "currency": "RUB",
+    "locale": "ru-RU",
+    "timezone": "Europe/Moscow",
+    "price_version": 1,
+    "valid_from": "2026-01-01",
+    "valid_until": "2026-12-31"
+  },
+  "tax": {
+    "calculation_order": "inclusive",
+    "vat_enabled": true,
+    "vat_rate": 22,
+    "note": "НДС 22% учтён в ценах прайса (цены конечные для клиента). Для выделения налога из суммы применяется расчётная ставка 22/122."
+  },
+  "rounding": {
+    "policy": "half_up",
+    "decimals": 2,
+    "currency_decimals": 2,
+    "note": "Округление денежных сумм — математическое (half_up) до 2 знаков; промежуточные расчёты не округляются."
+  },
+  "paths": {
+    "base_path": "/company_comp_service",
+    "catalog": "/company_comp_service/catalog.csv",
+    "prices": "/company_comp_service/prices.csv",
+    "rules": "/company_comp_service/rules.json",
+    "cases": "/company_comp_service/cases.md",
+    "template_kp": "/company_comp_service/template.docx"
+  },
+  "data": {
+    "catalog": "/company_comp_service/catalog.csv",
+    "prices": "/company_comp_service/prices.csv",
+    "catalog_id_field": "product_id",
+    "price_id_field": "product_id",
+    "profile_id": 1
+  }
+}

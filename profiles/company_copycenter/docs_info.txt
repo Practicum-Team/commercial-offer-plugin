@@ -1,0 +1,18 @@
+1. catalog.csv
+Основные поля: product_id, name, description, category, functions, characteristics
+Дополнительные необязательные поля: unit (единица измерения), weight_g (вес для материальных товаров).
+
+2. prices.csv
+Основные поля: price_id, product_id, amount, currency, valid_from, valid_until, price_version
+Необязательные поля: unit (единица измерения)
+
+3. rules.json
+Основные поля: rule_id, profile_id, applies_to, rule_type, conditions_json, description, source_file
+
+Описание полей conditions_json:
+
+discount_type — тип скидки; 
+discount_value — размер скидки; 0.15 = 15% (доля, не проценты).
+min_quantity — минимальное количество для применения скидки; 
+quantity_unit — единица измерения количества; (совпадает с unit в прайсе).
+stackable — суммируется ли скидка с другими; false = не суммируется (применяется отдельно).

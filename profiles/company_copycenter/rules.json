@@ -1,0 +1,137 @@
+[
+  {
+    "rule_id": "1",
+    "profile_id": "2",
+    "applies_to": "all",
+    "rule_type": "tax",
+    "conditions_json": {
+      "tax_mode": "VAT_INCLUDED",
+      "vat_rate": 0.22,
+      "calculation_order": "price_is_gross",
+      "note": "НДС уже включён в цену; сумма из прайса является конечной ценой для клиента, налог сверху не начисляется."
+    },
+    "description": "НДС включён в цену. Сумма в прайсе — конечная цена (gross), налог не добавляется сверху.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "2",
+    "profile_id": "2",
+    "applies_to": "category:Печать",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.10,
+      "min_quantity": 100,
+      "quantity_unit": "лист",
+      "applies_to_quantity_threshold": true,
+      "stackable": false
+    },
+    "description": "Скидка 10% на печать при заказе от 100 листов в одной позиции.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "3",
+    "profile_id": "2",
+    "applies_to": "category:Копирование",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.15,
+      "min_quantity": 200,
+      "quantity_unit": "лист",
+      "stackable": false
+    },
+    "description": "Скидка 15% на копирование при заказе от 200 листов.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "4",
+    "profile_id": "2",
+    "applies_to": "category:Фотопечать",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.10,
+      "min_quantity": 20,
+      "quantity_unit": "шт",
+      "stackable": true
+    },
+    "description": "Скидка 10% на фотопечать при заказе от 20 фотографий.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "5",
+    "profile_id": "2",
+    "applies_to": "product_id:30",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.20,
+      "min_quantity": 4,
+      "quantity_unit": "шт",
+      "note": "Комплект фото на документы"
+    },
+    "description": "Скидка 20% на фото 3×4 при заказе комплекта от 4 штук (фото на документы).",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "6",
+    "profile_id": "2",
+    "applies_to": "category:Полиграфия",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.05,
+      "min_order_amount": 3000,
+      "currency": "RUB",
+      "applies_to": "category_total"
+    },
+    "description": "Скидка 5% на полиграфию при сумме заказа по категории от 3000 ₽.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "7",
+    "profile_id": "2",
+    "applies_to": "category:Переплёт",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.10,
+      "bundle_with": "category:Печать",
+      "requires_both_categories_in_order": true
+    },
+    "description": "Скидка 10% на переплёт, если в заказе есть печать (комплексная услуга «печать + переплёт»).",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "8",
+    "profile_id": "2",
+    "applies_to": "all",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_type": "percent",
+      "discount_value": 0.07,
+      "loyalty_card": "discount_card_7",
+      "requires_card_presented": true,
+      "stackable_with": ["2","3","4"],
+      "max_total_discount": 0.25
+    },
+    "description": "Дисконтная карта постоянного клиента: 7% на весь заказ, суммируется со скидками на объём, но итоговая скидка не более 25%.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "9",
+    "profile_id": "2",
+    "applies_to": "all",
+    "rule_type": "limit",
+    "conditions_json": {
+      "min_order_amount": 0,
+      "max_discount_total": 0.25,
+      "rounding_policy": "HALF_UP",
+      "rounding_decimal_places": 2,
+      "apply_order": ["volume_discount", "category_discount", "loyalty_discount", "cap_total_discount", "round_final"]
+    },
+    "description": "Ограничение: суммарная скидка по заказу не более 25%; порядок применения скидок и округление итоговой суммы (2 знака, HALF_UP).",
+    "source_file": "rules.json"
+  },
+]

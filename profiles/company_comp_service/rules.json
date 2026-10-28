@@ -1,0 +1,261 @@
+[
+  {
+    "rule_id": "1",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "eligibility",
+    "conditions_json": {
+      "entity": "discount_card",
+      "issued_to": ["individual"],
+      "min_purchase_amount": 5000,
+      "currency": "RUB",
+      "required_fields": ["full_name", "phone", "email"],
+      "phone_confirmation_required": true,
+      "deactivation_on_unconfirmed_phone": true,
+      "activation_delay_days": 1,
+      "activation_delay_scope": "working_day",
+      "transferable": true,
+      "expires": false
+    },
+    "description": "Дисконтная карта выдаётся только физическим лицам. Для получения карты требуется покупка от 5000 руб. и заполнение всех обязательных полей анкеты (ФИО, телефон, email). При неподтверждении номера телефона карта может быть дезактивирована. Карта и скидка активируются лишь для следующей покупки (первая покупка для получения карты - без скидки). Карта неименная, срок действия не ограничен. Скидка по карте фиксированная; баллы не накапливаются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "2",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_card_required": true,
+      "card_presence_must_be_stated_by_customer": true,
+      "do_not_offer_if_not_stated": true,
+      "discount_percent": 5,
+      "applies_to": "current_purchase_only",
+      "stackable": false,
+      "cumulative": false,
+      "points_accumulation": false,
+      "currency": "RUB"
+    },
+    "description": "Базовая скидка по дисконтной карте — фиксированные 5% на покупку. Скидка применяется ТОЛЬКО если клиент явно заявил о наличии у него дисконтной карты. Если клиент не упомянул карту, скидка не применяется и карта не предлагается и не подразумевается; при необходимости факт наличия карты уточняется у клиента. Скидка не суммируется с другими акциями, баллы не накапливаются, совокупная сумма покупок не учитывается.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "3",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_card_required": true,
+      "card_presence_must_be_stated_by_customer": true,
+      "do_not_offer_if_not_stated": true,
+      "min_purchase_amount": 10000,
+      "max_purchase_amount": 15000,
+      "min_inclusive": true,
+      "max_inclusive": false,
+      "discount_percent": 10,
+      "applies_to": "current_purchase_only",
+      "stackable": false,
+      "cumulative": false,
+      "points_accumulation": false,
+      "currency": "RUB"
+    },
+    "description": "При сумме покупки от 10 000 руб. (включительно) до 15 000 руб. (не включая) скидка по дисконтной карте составляет 10%. Скидка применяется ТОЛЬКО если клиент явно заявил о наличии у него дисконтной карты; если не заявил — не применяется и не предлагается. Скидка применяется только к текущей покупке, баллы не накапливаются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "4",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_card_required": true,
+      "card_presence_must_be_stated_by_customer": true,
+      "do_not_offer_if_not_stated": true,
+      "min_purchase_amount": 15000,
+      "max_purchase_amount": 30000,
+      "min_inclusive": true,
+      "max_inclusive": false,
+      "discount_percent": 15,
+      "applies_to": "current_purchase_only",
+      "stackable": false,
+      "cumulative": false,
+      "points_accumulation": false,
+      "currency": "RUB"
+    },
+    "description": "При сумме покупки от 15 000 руб. (включительно) до 30 000 руб. (не включая) скидка по дисконтной карте составляет 15%. Скидка применяется ТОЛЬКО если клиент явно заявил о наличии у него дисконтной карты; если не заявил — не применяется и не предлагается. Скидка применяется только к текущей покупке, баллы не накапливаются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "5",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "discount",
+    "conditions_json": {
+      "discount_card_required": true,
+      "card_presence_must_be_stated_by_customer": true,
+      "do_not_offer_if_not_stated": true,
+      "min_purchase_amount": 30000,
+      "max_purchase_amount": null,
+      "min_inclusive": true,
+      "max_inclusive": false,
+      "discount_percent": 20,
+      "max_discount_percent": 20,
+      "applies_to": "current_purchase_only",
+      "stackable": false,
+      "cumulative": false,
+      "points_accumulation": false,
+      "currency": "RUB"
+    },
+    "description": "При сумме покупки от 30 000 руб. и выше скидка по дисконтной карте составляет 20% — максимальный размер скидки. Скидка применяется ТОЛЬКО если клиент явно заявил о наличии у него дисконтной карты; если не заявил — не применяется и не предлагается. Скидка применяется только к текущей покупке, баллы не накапливаются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "6",
+    "profile_id": "1",
+    "applies_to": "category:Аппаратное обеспечение (компьютер)",
+    "rule_type": "eligibility",
+    "conditions_json": {
+      "service_type": "on-site",
+      "min_repair_amount": 5000,
+      "repair_amount_comparison": "strictly_greater",
+      "visit_price": 0,
+      "visit_price_if_below_threshold": "paid_per_tariff",
+      "currency": "RUB"
+    },
+    "description": "Бесплатный выезд специалиста при выполнении ремонта компьютеров на сумму более 5000 руб. При сумме ремонта не более 5000 руб. выезд платный.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "7",
+    "profile_id": "1",
+    "applies_to": "category:Комплектующие",
+    "rule_type": "discount",
+    "conditions_json": {
+      "min_total_amount": 20000,
+      "discount_percent": 5,
+      "applies_to": "goods_only",
+      "one_time_purchase": true,
+      "stackable_with_loyalty": false,
+      "cumulative": false,
+      "points_accumulation": false,
+      "currency": "RUB"
+    },
+    "description": "При единовременной закупке комплектующих на сумму от 20 000 руб. предоставляется фиксированная скидка 5% на товары текущей покупки. Не суммируется со скидкой по дисконтной карте, баллы не накапливаются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "8",
+    "profile_id": "1",
+    "applies_to": "product_id:14,30",
+    "rule_type": "eligibility",
+    "conditions_json": {
+      "condition": "repair_performed",
+      "diagnostics_price": 0,
+      "window_days": 30,
+      "window_anchor": "repair_completion_date",
+      "currency": "RUB"
+    },
+    "description": "Повторная диагностика ПК или ноутбука в течение 30 дней после выполненного ремонта — бесплатно.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "9",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "discount",
+    "conditions_json": {
+      "payment_type": "prepaid",
+      "contract_required": true,
+      "min_prepay_amount": 30000,
+      "discount_percent": 3,
+      "applies_to": "services_only",
+      "stackable_with_loyalty": false,
+      "cumulative": false,
+      "points_accumulation": false,
+      "currency": "RUB"
+    },
+    "description": "При предоплате по договору на сумму от 30 000 руб. предоставляется фиксированная скидка 3% на услуги текущего заказа. Не суммируется со скидкой по дисконтной карте, баллы не накапливаются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "10",
+    "profile_id": "1",
+    "applies_to": "product_id:51",
+    "rule_type": "limit",
+    "conditions_json": {
+      "service_type": "urgent_on-site",
+      "response_hours": 2,
+      "surcharge_percent": 20,
+      "surcharge_base": "visit_price",
+      "available_outside_base_radius": false,
+      "currency": "RUB"
+    },
+    "description": "Срочный выезд инженера с прибытием до 2 часов оплачивается с надбавкой 20% к стоимости выезда. Не оказывается за пределами базового радиуса.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "11",
+    "profile_id": "1",
+    "applies_to": "category:Аппаратное обеспечение (компьютер),Аппаратное обеспечение (ноутбук)",
+    "rule_type": "eligibility",
+    "conditions_json": {
+      "warranty_days": 90,
+      "rework_price": 0,
+      "applies_to": "same_fault",
+      "warranty_anchor": "repair_completion_date"
+    },
+    "description": "Повторное устранение той же неисправности в течение 90 дней после ремонта выполняется бесплатно (гарантийный случай).",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "12",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "limit",
+    "conditions_json": {
+      "policy": "half_up",
+      "decimals": 2,
+      "currency_decimals": 2,
+      "intermediate_rounding": false,
+      "applies_to": "final_amounts_only"
+    },
+    "description": "Округление денежных сумм — математическое (half_up) до 2 знаков; промежуточные расчёты не округляются.",
+    "source_file": "rules.json"
+  },
+  {
+    "rule_id": "13",
+    "profile_id": "1",
+    "applies_to": "all",
+    "rule_type": "tax",
+    "conditions_json": {
+      "vat_enabled": true,
+      "vat_rate": 22,
+      "calculation_order": "inclusive",
+      "prices_include_vat": true,
+      "extraction_rate": "22/122",
+      "currency": "RUB",
+      "currency_decimals": 2
+    },
+    "description": "НДС 22% включён в цены прайса: суммы в прайсе являются конечными ценами для клиента. Для выделения налога из суммы применяется расчётная ставка 22/122.",
+    "source_file": "rules.json"
+  },
+  {
+  "rule_id": "14",
+  "profile_id": "1",
+  "applies_to": "all",
+  "rule_type": "limit",
+  "conditions_json": {
+    "entity": "discount_card",
+    "card_presence_must_be_stated_by_customer": true,
+    "do_not_offer_if_not_stated": true,
+    "do_not_assume_card_presence": true,
+    "requires_explicit_customer_statement": true,
+    "explicit_statement_definition": "Любая прямая фраза клиента о наличии у него карты (например: «у меня есть карта», «есть дисконтная карта», «карта у меня») считается явным заявлением. Дополнительное подтверждение наличия карты не требуется.",
+    "if_not_stated_action": "do_not_apply_discount_and_do_not_offer_card",
+    "clarification_required_if_relevant": true,
+    "currency": "RUB"
+  },
+  "description": "Запрещено применять скидку по дисконтной карте (правила 2–5) или подразумевать наличие карты, если клиент явно не заявил о её наличии. Прямая фраза клиента о наличии карты считается явным заявлением; дополнительное подтверждение не требуется. Если клиент не упомянул карту, скидка не рассчитывается и карта не предлагается; при необходимости факт наличия карты уточняется у клиента. Это правило имеет приоритет над правилами скидок 2–5.",
+  "source_file": "rules.json"
+}
+]
