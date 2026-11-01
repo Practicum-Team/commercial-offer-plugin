@@ -14,6 +14,7 @@ from .importer import ProfileLoader, check_file
 from . import search, storage, validator, confirmations
 from .config import Config
 from .schemas import ProfileSchema
+from .proposal_pipeline import prepare_from_search
 
 
 CONFIG = Config.load()
@@ -283,6 +284,35 @@ def cmd_search_rules(args: argparse.Namespace) -> int:
     return _emit({"ok": True, "count": len(rows), "rules": rows})
 
 
+def cmd_proposal_prepare(args: argparse.Namespace) -> int:
+    try:
+        search_results = json.loads(Path(args.search_results).read_text(encoding="utf-8"))
+        request = json.loads(Path(args.request_schema).read_text(encoding="utf-8"))
+        confirmed = (
+            json.loads(Path(args.confirmed).read_text(encoding="utf-8"))
+            if args.confirmed else None
+        )
+        result = prepare_from_search(
+            config=args.config,
+            search_results=search_results,
+            request=request,
+            output_path=Path(args.output),
+            confirmed=confirmed,
+        )
+    except Exception as exc:
+        return _emit({"ok": False, "error": str(exc)}, code=1)
+    return _emit({"ok": True, **result})
+
+
+def cmd_template_fields(args: argparse.Namespace) -> int:
+    from .document_preparation import template_fields
+    from .proposal import ProposalError
+    try:
+        fields = template_fields(args.config.profile_path() / "template.docx")
+    except ProposalError as exc:
+        return _emit({"ok": False, "error": str(exc)}, code=1)
+    return _emit({"ok": True, "fields": fields})
+
 # ---------- парсер ----------
 
 def build_parser() -> argparse.ArgumentParser:
@@ -379,6 +409,19 @@ def build_parser() -> argparse.ArgumentParser:
                     help="Вернуть все правила профиля (для проверки явной скидки)")
     sp.add_argument("--db-url", default=None)
     sp.set_defaults(func=cmd_search_rules)
+
+    # в build_parser()
+    sp = sub.add_parser("proposal-prepare",
+                        help="Рассчитать и сгенерировать DOCX из search-results.json + request-schema.json")
+    sp.add_argument("search_results")   # путь к JSON
+    sp.add_argument("request_schema")   # путь к JSON
+    sp.add_argument("--output", required=True)
+    sp.add_argument("--confirmed", default=None, help="JSON с подтверждёнными полями")
+    sp.set_defaults(func=cmd_proposal_prepare)
+
+    sp = sub.add_parser("template-fields",
+        help="Список плейсхолдеров {{...}} в template.docx профиля")
+    sp.set_defaults(func=cmd_template_fields)
 
     return p
 

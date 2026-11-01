@@ -221,3 +221,10 @@ __marimo__/
 
 config.json
 config.json.lock
+confirmed.json
+data-schema.json
+request-schema.json
+search-results.json
+*.sqlite3
+audit.jsonl
+confirmations.json
