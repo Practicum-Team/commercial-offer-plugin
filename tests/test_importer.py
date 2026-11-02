@@ -76,3 +76,21 @@ def test_profile_loader_overwrite_yes(config, tmp_path: Path):
     src.write_text("product_id,name\n1,A\n", encoding="utf-8")
     res = loader.load("company_a", [src], overwrite=True)
     assert res["status"] == "ok"
+
+def test_profile_loader_detects_different_files_with_same_size_and_time(config, tmp_path: Path, catalog_csv):
+    loader = importer.ProfileLoader(config)
+    destination = config.profile_path() / "catalog.csv"
+    destination.write_bytes(catalog_csv.read_bytes())
+
+    source = tmp_path / "catalog.csv"
+    original = catalog_csv.read_bytes()
+    replacement = original.replace(b"32", b"99", 1)
+    assert len(replacement) == len(original)
+    source.write_bytes(replacement)
+    stat = destination.stat()
+    import os
+    os.utime(source, ns=(stat.st_atime_ns, stat.st_mtime_ns))
+
+    result = loader.load("company_a", [source], overwrite=None)
+    assert result["status"] == "needs_confirmation"
+    assert result["conflicts"][0]["file"] == "catalog.csv"

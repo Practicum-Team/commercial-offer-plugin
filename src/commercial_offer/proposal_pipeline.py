@@ -14,7 +14,10 @@ from .proposal import ProposalError
 
 # ---------- вспомогательные ----------
 
-_WORK_WORDS = ("работ", "услуг", "сервис")
+# Для компьютерного сервиса названия категорий описывают тип работ,
+# а «Комплектующие» и «Расходные материалы» — продаваемые товары.
+_GOODS_CATEGORIES = {"комплектующие", "расходные материалы"}
+_WORK_WORDS = ("работ", "услуг", "сервис", "обеспечен", "печать", "копирован", "переплет")
 _NUM_TOKEN = re.compile(r"^(?P<prefix>[A-Za-zА-Яа-я_/]+?)_(?P<n>\d+)$")
 
 
@@ -24,12 +27,35 @@ def _on_date(request: Mapping[str, Any]) -> date:
 
 
 def _discount_card(request: Mapping[str, Any]) -> bool:
-    text = (request.get("запрос") or "").lower()
-    return (
-        "дисконт" in text
-        or "скидочн" in text
-        or "discount_card" in (request.get("ограничения") or [])
+    """Возвращает True только при явном подтверждении наличия карты."""
+    for key in ("discount_card", "дисконтная_карта"):
+        value = request.get(key)
+        if isinstance(value, bool):
+            return value
+
+    restrictions = request.get("ограничения") or []
+    if isinstance(restrictions, str):
+        restrictions = [restrictions]
+    if any(str(value).strip().lower() == "discount_card" for value in restrictions):
+        return True
+
+    text = str(request.get("запрос") or "").lower().replace("ё", "е")
+    negative_patterns = (
+        r"\bнет\b.{0,35}\bдисконтн\w*\s+карт\w*",
+        r"\bбез\b.{0,25}\bдисконтн\w*\s+карт\w*",
+        r"\bне\s+(?:имею|имеется|предъявляю|пользуюсь)\b.{0,30}\bкарт\w*",
+        r"\bкарт\w*\b.{0,20}\bнет\b",
     )
+    if any(re.search(pattern, text) for pattern in negative_patterns):
+        return False
+
+    positive_patterns = (
+        r"\bесть\b.{0,30}\bдисконтн\w*\s+карт\w*",
+        r"\bимею\b.{0,25}\bдисконтн\w*\s+карт\w*",
+        r"\bпредъявляю\b.{0,25}\bкарт\w*",
+        r"\bкарт\w*\s+есть\b",
+    )
+    return any(re.search(pattern, text) for pattern in positive_patterns)
 
 
 def _items(search_results: Mapping[str, Any]) -> list[dict]:
@@ -47,7 +73,9 @@ def _items(search_results: Mapping[str, Any]) -> list[dict]:
 def _is_work(category: str | None) -> bool:
     if not category:
         return False
-    low = category.lower()
+    low = category.lower().strip()
+    if low in _GOODS_CATEGORIES:
+        return False
     return any(w in low for w in _WORK_WORDS)
 
 
@@ -188,6 +216,10 @@ def prepare_from_search(
     profile_id = search_results.get("profile_id") or request.get("profile_id")
     if not profile_id:
         raise ProposalError("не указан profile_id")
+    if request.get("profile_id") and request["profile_id"] != profile_id:
+        raise ProposalError("Профили запроса и результатов поиска не совпадают")
+    if not re.fullmatch(r"[A-Za-z0-9_-]+", str(profile_id)):
+        raise ProposalError("Некорректное имя профиля компании")
     profile_dir = config.profiles_dir / profile_id
 
     # 1) расчёт
@@ -221,7 +253,7 @@ def prepare_from_search(
     from .company_docx import generate_company_docx
     created = generate_company_docx(
         template_path=template, output_path=Path(output_path),
-        quote=quote, content=values,
+        quote=quote, content=values, document_date=_on_date(request),
     )
     return {
         "quote": quote,

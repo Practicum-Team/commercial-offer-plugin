@@ -8,7 +8,7 @@ def test_search_products_respects_date_and_budget(committed_profile: str):
     )
     ids = {h["product_id"] for h in hits}
     assert "32" in ids
-    assert "40" not in ids  # 1000 <= 1500, но проверим бюджет 800
+    assert "40" in ids  # цена товара укладывается в бюджет 1500
     hits2 = search.search_products(
         committed_profile, "company_a", budget="800", purchase_date="2026-01-01",
     )
@@ -39,10 +39,14 @@ def test_find_rules_by_product_and_all(committed_profile: str):
         product_ids=["32"], categories=["service"],
     )
     ids = {r["rule_id"] for r in rows}
-    assert "r1" in ids  # all
-    assert "r2" in ids  # 32
+    assert "r1" in ids  # общее правило
+    assert "r2" in ids  # правило по товару
+    assert "r3" in ids  # правило по категории
 
 
 def test_find_rules_check_discount_returns_all(committed_profile: str):
     rows = search.find_rules(committed_profile, "company_a", check_discount=True)
-    assert {r["rule_id"] for r in rows} == {"r1", "r2"}
+    assert {r["rule_id"] for r in rows} == {"r1", "r2", "r3"}
+    import json
+    general_rule = next(row for row in rows if row["rule_id"] == "r1")
+    assert json.loads(general_rule["conditions_json"]) == {"discount_card": True, "percent": 5}

@@ -199,9 +199,13 @@ def find_rules(
         if not check_discount:
             conditions = [Rule.applies_to == "all"]
             if product_ids:
-                conditions.append(Rule.applies_to.in_(product_ids))
+                targets = [str(value) for value in product_ids]
+                targets.extend(f"product_id:{value}" for value in product_ids)
+                conditions.append(Rule.applies_to.in_(targets))
             if categories:
-                conditions.append(Rule.applies_to.in_(categories))
+                targets = [str(value) for value in categories]
+                targets.extend(f"category:{value}" for value in categories)
+                conditions.append(Rule.applies_to.in_(targets))
             if len(conditions) > 1:
                 from sqlalchemy import or_
                 stmt = stmt.where(or_(*conditions))

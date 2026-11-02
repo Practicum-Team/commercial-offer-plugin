@@ -41,16 +41,12 @@ def prepare_company_proposal(
     if absent:
         raise ProposalError('Не заполнены поля шаблона: ' + ', '.join(absent))
 
-    # Генератор повторно заполняет дату самостоятельно, поэтому возвращаемая дата
-    # должна совпадать с датой формирования документа. Не допускаем тихой подмены.
-    if on_date != date.today():
-        raise ProposalError('Для создания документа используйте текущую дату; расчёт за другую дату доступен отдельно')
-
     target = Path(output_path)
     created = generate_company_docx(
         template_path=template,
         output_path=target,
         quote=quote,
         content=values,
+        document_date=on_date,
     )
     return {'quote': quote, 'document_path': str(created), 'missing_fields': []}

@@ -25,3 +25,13 @@ def test_missing_placeholder(tmp_path):
     Document().save(template)
     with pytest.raises(ProposalError, match="отсутствуют плейсхолдеры"):
         generate_proposal(template_path=template, output_path=tmp_path/"out.docx",quote=QUOTE,content=CONTENT)
+
+
+def test_discount_card_requires_positive_confirmation():
+    from commercial_offer.proposal_pipeline import _discount_card
+
+    assert _discount_card({"запрос": "У меня нет дисконтной карты"}) is False
+    assert _discount_card({"запрос": "Заказ без дисконтной карты"}) is False
+    assert _discount_card({"запрос": "У меня есть дисконтная карта"}) is True
+    assert _discount_card({"discount_card": True}) is True
+    assert _discount_card({"discount_card": False, "запрос": "карта есть"}) is False

@@ -23,8 +23,25 @@ def _paragraphs(document):
                 yield from cell.paragraphs
 
 
+def _validate_quote_totals(quote: Mapping[str, Any], rows: list[dict]) -> None:
+    """Проверяет арифметику полного расчёта перед записью DOCX."""
+    try:
+        row_total = sum((Decimal(str(item['total'])) for item in rows), Decimal('0'))
+        row_discounts = sum((Decimal(str(item['discount_amount'])) for item in rows), Decimal('0'))
+        row_subtotal = sum((Decimal(str(item['subtotal'])) for item in rows), Decimal('0'))
+        if (row_total != Decimal(str(quote['grand_total']))
+                or row_discounts != Decimal(str(quote['discount_total']))
+                or row_subtotal != Decimal(str(quote['subtotal']))
+                or row_subtotal - row_discounts != row_total):
+            raise ProposalError('Итоговые суммы не совпадают с рассчитанными позициями')
+    except ProposalError:
+        raise
+    except (KeyError, ValueError, ArithmeticError) as exc:
+        raise ProposalError('Недостаточно данных для проверки итоговых сумм') from exc
+
 def generate_company_docx(*, template_path: str | Path, output_path: str | Path,
-                          quote: Mapping[str, Any], content: Mapping[str, str]) -> Path:
+                          quote: Mapping[str, Any], content: Mapping[str, str],
+                          document_date: date | None = None) -> Path:
     """Подставляет данные и проверяет, что в документе не осталось пустых полей."""
     template = Path(template_path)
     if not template.is_file():
@@ -35,17 +52,22 @@ def generate_company_docx(*, template_path: str | Path, output_path: str | Path,
                 'соответствие_требованиям', 'итого_работы', 'итого_оборудование')
     if any(not content.get(field) for field in required):
         raise ProposalError('Не заполнены обязательные разделы коммерческого предложения')
+    # Сверяем итоговую сумму с каждой позицией, не доверяя готовому JSON расчёта.
+    rows = quote['items']
+    if 'subtotal' in quote and all('subtotal' in item for item in rows):
+        _validate_quote_totals(quote, rows)
     document = Document(template)
-    items = quote['items']
+    items = rows
     discounts = str(quote.get('discount_total', '0.00'))
     totals = {
-        'дата_КП': date.today().strftime('%d.%m.%Y'),
+        'дата_КП': (document_date or date.today()).strftime('%d.%m.%Y'),
         'скидка_процент': 'см. таблицу',
         'скидка_сумма': discounts,
         'итого_к_оплате': quote['grand_total'],
         'НДС': str(sum((Decimal(i.get('tax_included', '0')) for i in items), Decimal(0))),
     }
-    values = {**totals, **content}
+    # Итоговые суммы и дата берутся из расчёта, а не из произвольного текста.
+    values = {**content, **totals}
     # Плейсхолдеры обязательны: неизвестные значения не подменяем выдуманными.
     missing = set()
     for paragraph in _paragraphs(document):

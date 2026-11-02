@@ -109,3 +109,20 @@ def test_check_content_rules_missing_description(profile_dir: Path):
     res = validator.check_content("p", schema, _files(p))
     assert not res.ok
     assert any("описания правила" in e["reason"] for e in res.errors)
+
+def test_payload_columns_are_kept_for_database(profile_dir: Path):
+    p = profile_dir / "catalog_payload.csv"
+    p.write_text(
+        "product_id,name,category,характеристики\n"
+        "1,Маршрутизатор,Сетевое оборудование,Wi-Fi 6; 4 порта\n",
+        encoding="utf-8",
+    )
+    schema = ProfileSchema.from_dict({"profile_name": "p", "files": [
+        {"filename": "catalog_payload.csv", "kind": "catalog",
+         "field_map": {"product_id": "product_id", "name": "name", "category": "category"},
+         "payload_columns": ["характеристики"]},
+    ]})
+    res = validator.check_content("p", schema, _files(p))
+    assert res.ok, res.errors
+    assert res.products[0]["характеристики"] == "Wi-Fi 6; 4 порта"
+    assert res.products[0]["_payload_columns"] == ["характеристики"]
