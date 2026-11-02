@@ -31,3 +31,25 @@ def test_commit_profile_creates_db(tmp_path: Path):
     )
     assert res.ok and res.counts["products"] == 1
     assert (tmp_path / "x.sqlite3").exists()
+
+def test_commit_profile_keeps_additional_catalog_columns(tmp_path: Path):
+    import json
+    from sqlalchemy import select
+    from commercial_offer.schemas import Product
+
+    db_url = f"sqlite:///{tmp_path / 'payload.sqlite3'}"
+    result = storage.commit_profile(
+        profile_name="p", db_url=db_url,
+        products=[{
+            "product_id": "1",
+            "name": "Маршрутизатор",
+            "характеристики": "Wi-Fi 6",
+            "_payload_columns": ["характеристики"],
+        }],
+        prices=[], rules=[], cases=[],
+    )
+    assert result.ok, result.errors
+    SessionLocal = storage.make_session_factory(db_url)
+    with SessionLocal() as session:
+        product = session.execute(select(Product)).scalar_one()
+    assert json.loads(product.payload) == {"характеристики": "Wi-Fi 6"}

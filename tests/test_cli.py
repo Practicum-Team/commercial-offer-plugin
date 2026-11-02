@@ -127,3 +127,22 @@ def test_schema_change_invalidates_confirmations(
     )
     assert code == 4
     assert out["stage"] == "confirmation"
+
+def test_search_uses_database_for_requested_profile_not_active_profile(tmp_path: Path):
+    from argparse import Namespace
+    from commercial_offer.cli import _resolve_db_url
+    from commercial_offer.config import Config
+
+    profiles_dir = tmp_path / "profiles"
+    first = profiles_dir / "company_a"
+    second = profiles_dir / "company_b"
+    first.mkdir(parents=True)
+    second.mkdir(parents=True)
+    cfg = Config.load(config_path=tmp_path / "config.json")
+    cfg.profiles_dir = profiles_dir
+    cfg.register_profile("company_a", first)
+    cfg.register_profile("company_b", second)
+    cfg.set_active_profile("company_a")
+
+    args = Namespace(db_url=None, config=cfg, name="company_b")
+    assert _resolve_db_url(args) == f"sqlite:///{second / 'profile.sqlite3'}"

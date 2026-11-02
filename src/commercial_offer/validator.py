@@ -122,6 +122,11 @@ class ContentCheck:
 def _iter_file_rows(profile_name: str, fs: FileSchema, path: Path) -> Iterable[dict]:
     for row_no, raw in importer.iter_rows(path):
         norm = importer.normalize_row(raw, fs.field_map)
+        # Дополнительные столбцы сохраняются отдельно, чтобы не терять характеристики товара.
+        norm["_payload_columns"] = list(fs.payload_columns)
+        for column in fs.payload_columns:
+            if column in raw:
+                norm[column] = raw[column]
         norm["_source_file"] = path.name
         norm["_source_row"] = row_no
         yield norm

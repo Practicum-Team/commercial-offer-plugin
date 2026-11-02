@@ -21,6 +21,9 @@ CONFIG = Config.load()
 
 
 def _emit(payload: dict, code: int = 0) -> int:
+    # При перенаправлении в файл Windows может использовать cp1251 вместо UTF-8.
+    if hasattr(sys.stdout, "reconfigure"):
+        sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
     return code
 
@@ -256,7 +259,12 @@ def cmd_profiles_commit(args: argparse.Namespace) -> int:
 # --- обработчики ---
 
 def _resolve_db_url(args: argparse.Namespace) -> str:
-    return args.db_url or storage.default_db_url(args.config.profile_path())
+    if args.db_url:
+        return args.db_url
+    entry = args.config.profiles.get(args.name)
+    if entry is None:
+        raise ValueError(f"Профиль не зарегистрирован: {args.name}")
+    return storage.default_db_url(entry.path)
 
 
 def cmd_search_products(args: argparse.Namespace) -> int:
