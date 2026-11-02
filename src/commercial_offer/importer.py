@@ -109,9 +109,7 @@ def _same_file_fast(a: Path, b: Path) -> bool | None:
     sa, sb = a.stat(), b.stat()
     if sa.st_size != sb.st_size:
         return False
-    # mtime с точностью до наносекунд; допускаем небольшой разброс ФС (например, FAT — 2 с)
-    if abs(sa.st_mtime_ns - sb.st_mtime_ns) <= 2_000_000_000:
-        return True
+    # Совпадение размера не доказывает совпадение содержимого — требуется хеш.
     return None
 
 
@@ -141,6 +139,9 @@ class ProfileLoader:
                 errors.append({"file": src.name, "reason": chk.reason})
                 continue
             dst = profile_dir / src.name
+            if dst.exists() and dst.resolve() == src.resolve():
+                plan.append({"src": src, "dst": dst, "action": "skip", "kind": chk.detected_kind})
+                continue
             if dst.exists() and dst.resolve() != src.resolve():
                 fast = _same_file_fast(dst, src)
                 if fast is True:

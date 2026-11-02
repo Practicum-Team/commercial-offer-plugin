@@ -63,9 +63,11 @@ def rules_json(profile_dir: Path) -> Path:
     p.write_text(json.dumps([
         {"rule_id": "r1", "applies_to": "all", "rule_type": "discount",
          "description": "Скидка 5% по дисконтной карте",
-         "conditions": {"discount_card": True, "percent": 5}},
-        {"rule_id": "r2", "applies_to": "32", "rule_type": "limit",
+         "conditions_json": {"discount_card": True, "percent": 5}},
+        {"rule_id": "r2", "applies_to": "product_id:32", "rule_type": "limit",
          "description": "Не более 3 чисток в год"},
+        {"rule_id": "r3", "applies_to": "category:service", "rule_type": "limit",
+         "description": "Ограничение по категории"},
     ], ensure_ascii=False), encoding="utf-8")
     return p
 

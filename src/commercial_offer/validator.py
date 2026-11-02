@@ -72,18 +72,20 @@ def check_schema(profile_name: str, schema: ProfileSchema,
             continue
         seen_kinds[fs.kind] = seen_kinds.get(fs.kind, 0) + 1
 
-        # обязательные логические поля по назначению
+        path = files_on_disk[fs.filename]
+
+        # Для JSON и Markdown правила читаются из содержимого файла, а не из field_map.
         required = REQUIRED_FIELDS.get(fs.kind, [])
-        for req in required:
-            alternatives = req.split("|")
-            if not any(alt in fs.field_map for alt in alternatives):
-                errors.append({
-                    "file": fs.filename,
-                    "reason": f"нет обязательного поля {req}",
-                })
+        if not (fs.kind == KIND_RULES and path.suffix.lower() in (".json", ".md")):
+            for req in required:
+                alternatives = req.split("|")
+                if not any(alt in fs.field_map for alt in alternatives):
+                    errors.append({
+                        "file": fs.filename,
+                        "reason": f"нет обязательного поля {req}",
+                    })
 
         # карта полей ссылается на реальные столбцы файла
-        path = files_on_disk[fs.filename]
         if path.suffix.lower() in (".csv", ".xlsx"):
             columns, _ = importer.read_table(path)
             unknown = [col for col in fs.field_map.values() if col not in columns]
@@ -268,18 +270,33 @@ def _parse_rules_markdown_json(profile_name: str, fs: FileSchema, path: Path,
             return []
         out = []
         for i, item in enumerate(data, start=1):
+            if not isinstance(item, dict):
+                errors.append({"file": path.name, "row": i, "reason": "правило должно быть объектом"})
+                continue
             desc = item.get("description") or item.get("text") or ""
             applies_to = item.get("applies_to") or item.get("scope") or ""
             if not desc:
                 errors.append({"file": path.name, "row": i, "reason": "нет описания правила"})
             if not applies_to:
                 errors.append({"file": path.name, "row": i, "reason": "нет области применения"})
+
+            # В готовых профилях условия уже могут храниться в поле conditions_json.
+            conditions = item.get("conditions_json", item.get("conditions", {}))
+            if isinstance(conditions, str):
+                try:
+                    conditions = json.loads(conditions)
+                except json.JSONDecodeError:
+                    errors.append({"file": path.name, "row": i, "reason": "conditions_json содержит некорректный JSON"})
+                    conditions = {}
+            if not isinstance(conditions, dict):
+                errors.append({"file": path.name, "row": i, "reason": "условия правила должны быть объектом"})
+                conditions = {}
+
             out.append({
                 "rule_id": item.get("rule_id") or f"{path.stem}_{i}",
                 "applies_to": applies_to or "all",
-                "rule_type": item.get("rule_type", "discount"),
-                "conditions_json": json.dumps(
-                    item.get("conditions", {}), ensure_ascii=False),
+                "rule_type": item.get("rule_type") or item.get("type") or "discount",
+                "conditions_json": json.dumps(conditions, ensure_ascii=False),
                 "description": desc,
                 "_source_file": path.name,
             })
