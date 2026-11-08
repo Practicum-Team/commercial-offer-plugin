@@ -138,46 +138,49 @@ def _autofill_confirmed(
     for i in range(1, max_pos + 1):
         if i <= len(items):
             it = items[i - 1]
-            values[f"ID_{i}"] = str(it.get("product_id", ""))
             values[f"позиция_{i}"] = str(it.get("name", ""))
-            values[f"кол_{i}"] = str(it.get("quantity", 0))
-            values[f"ед_{i}"] = "шт."
+            values[f"кол_р_{i}"] = str(it.get("quantity", 0))
             values[f"цена_{i}"] = str(it.get("unit_price", ""))
             values[f"сумма_{i}"] = str(it.get("total", ""))
         else:
-            values[f"ID_{i}"] = "—"
             values[f"позиция_{i}"] = "—"
-            values[f"кол_{i}"] = "—"
-            values[f"ед_{i}"] = "—"
+            values[f"кол_р_{i}"] = "—"
             values[f"цена_{i}"] = "—"
             values[f"сумма_{i}"] = "—"
 
-    # -- работы (услуга_n, кол_р_n) --
+    # -- работы: ID_раб_n только для работ --
     max_work = _max_index(template_fields, "услуга_")
-    max_work_qty = _max_index(template_fields, "кол_р_")
-    max_work = max(max_work, max_work_qty)
+    max_work = max(max_work, _max_index(template_fields, "ID_раб_"),
+                   _max_index(template_fields, "кол_р_"))
     for i in range(1, max_work + 1):
         if i <= len(work_items):
             it = work_items[i - 1]
             values[f"услуга_{i}"] = str(it.get("name", ""))
+            values[f"ID_раб_{i}"] = str(it.get("product_id", ""))
             values[f"кол_р_{i}"] = str(it.get("quantity", 0))
+            values[f"ед_р_{i}"] = "шт."
         else:
             values[f"услуга_{i}"] = "—"
+            values[f"ID_раб_{i}"] = "—"
             values[f"кол_р_{i}"] = "—"
+            values[f"ед_р_{i}"] = "шт."
 
-    # -- оборудование (оборудование_n, кол_об_n, ед_об_n) --
+    # -- оборудование: ID_об_n только для оборудования --
     max_eq = _max_index(template_fields, "оборудование_")
     max_eq = max(max_eq,
+                 _max_index(template_fields, "ID_об_"),
                  _max_index(template_fields, "кол_об_"),
                  _max_index(template_fields, "ед_об_"))
     for i in range(1, max_eq + 1):
         if i <= len(equip_items):
             it = equip_items[i - 1]
             values[f"оборудование_{i}"] = str(it.get("name", ""))
+            values[f"ID_об_{i}"] = str(it.get("product_id", ""))
             values[f"кол_об_{i}"] = str(it.get("quantity", 0))
             values[f"ед_об_{i}"] = "шт."
         else:
             values[f"оборудование_{i}"] = "—"
+            values[f"ID_об_{i}"] = "—"
             values[f"кол_об_{i}"] = "—"
             values[f"ед_об_{i}"] = "—"
 

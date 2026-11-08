@@ -180,6 +180,17 @@ def dump_all_products(
         return out
 
 
+def _split_applies_to(value: str) -> list[str]:
+    """'product_id:14,30' -> ['product_id:14', 'product_id:30']"""
+    if not value:
+        return []
+    if value == "all":
+        return ["all"]
+    if ":" in value:
+        prefix, rest = value.split(":", 1)
+        return [f"{prefix}:{item.strip()}" for item in rest.split(",") if item.strip()]
+    return [item.strip() for item in value.split(",") if item.strip()]
+
 # ---------- 3. Правила для выбранных товаров ----------
 
 def find_rules(
@@ -196,20 +207,23 @@ def find_rules(
     categories = categories or []
     with SessionLocal() as session:
         stmt = select(Rule).where(Rule.profile_id == profile_id)
-        if not check_discount:
-            conditions = [Rule.applies_to == "all"]
-            if product_ids:
-                targets = [str(value) for value in product_ids]
-                targets.extend(f"product_id:{value}" for value in product_ids)
-                conditions.append(Rule.applies_to.in_(targets))
-            if categories:
-                targets = [str(value) for value in categories]
-                targets.extend(f"category:{value}" for value in categories)
-                conditions.append(Rule.applies_to.in_(targets))
-            if len(conditions) > 1:
-                from sqlalchemy import or_
-                stmt = stmt.where(or_(*conditions))
-        rows = session.execute(stmt).scalars().all()
+        with SessionLocal() as session:
+            stmt = select(Rule).where(Rule.profile_id == profile_id)
+            if not check_discount:
+                allowed = {"all"}
+                for pid in product_ids:
+                    allowed.add(str(pid))
+                    allowed.add(f"product_id:{pid}")
+                for cat in categories:
+                    allowed.add(str(cat))
+                    allowed.add(f"category:{cat}")
+
+                rows = [
+                    r for r in session.execute(stmt).scalars()
+                    if allowed & set(_split_applies_to(r.applies_to or ""))
+                ]
+            else:
+                rows = session.execute(stmt).scalars().all()
         return [
             {
                 "rule_id": r.rule_id,

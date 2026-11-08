@@ -1,9 +1,0 @@
-1. catalog.csv
-Основные поля: profile_id,product_id,название,описание,категория,функции,характеристики
-
-2. prices.csv
-Основные поля: profile_id,product_id,цена,валюта,дата_начала,дата_окончания,price_version
-Необязательные поля: единица_измерения
-
-3. rules.json
-Основные поля: rule_id, profile_id, applies_to, rule_type, conditions_json, description, source_file

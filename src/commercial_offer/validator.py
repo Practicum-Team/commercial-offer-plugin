@@ -236,18 +236,68 @@ def _looks_like_date(value: Any) -> bool:
         return False
 
 
+import re
+
+_CASE_HEADER = re.compile(r"^##\s+(?P<title>.+?)\s*$", re.MULTILINE)
+_SEPARATOR = re.compile(r"^\s*---\s*$", re.MULTILINE)
+
+
+def _split_markdown_cases(text: str) -> list[tuple[str, str]]:
+    """Разбивает Markdown на (title, body). Кейс = блок от '## ' до следующего '## '
+    (или до конца файла). Горизонтальные '---' внутри блока сохраняются,
+    но идущие сразу после заголовка/перед следующим — отрезаются."""
+    matches = list(_CASE_HEADER.finditer(text))
+    if not matches:
+        # нет H2 — попробуем делить по '---' как fallback
+        chunks = [c.strip() for c in _SEPARATOR.split(text) if c.strip()]
+        return [(f"case_{i}", c) for i, c in enumerate(chunks, start=1)]
+
+    out: list[tuple[str, str]] = []
+    for idx, m in enumerate(matches):
+        start = m.end()
+        end = matches[idx + 1].start() if idx + 1 < len(matches) else len(text)
+        body = text[start:end].strip()
+        # отрезать один хвостовой/начальный '---'
+        body = _SEPARATOR.sub("", body, count=1).strip()
+        body = _SEPARATOR.sub("", body[::-1], count=1)[::-1].strip() if body.endswith("---") else body
+        out.append((m.group("title").strip(), body))
+    return out
+
+
+def _slug(title: str) -> str:
+    s = re.sub(r"[^\w\-]+", "_", title.lower(), flags=re.UNICODE).strip("_")
+    return s or "case"
+
+
 def _parse_cases(profile_name: str, fs: FileSchema, path: Path,
                  errors: list[dict]) -> list[dict]:
     out: list[dict] = []
     if path.suffix.lower() == ".md":
         text = importer.read_text(path)
-        out.append({
-            "case_id": path.stem,
-            "text": text,
-            "is_fictional": int("вымышлен" in text.lower() or "fictional" in text.lower()),
-            "_source_file": path.name,
-        })
+        blocks = _split_markdown_cases(text)
+        is_fictional_file = int("вымышлен" in text.lower() or "fictional" in text.lower())
+        for idx, (title, body) in enumerate(blocks, start=1):
+            if not body:
+                continue
+            # каждый кейс — отдельная запись; id формируем из заголовка
+            case_id = f"{path.stem}_{idx}_{_slug(title)}"[:120]
+            # признак вымышленности — по заголовку/телу кейса, иначе по файлу
+            local_text = (title + "\n" + body).lower()
+            is_fictional = int(
+                "вымышлен" in local_text or "fictional" in local_text
+                or is_fictional_file
+            )
+            out.append({
+                "case_id": case_id,
+                "text": f"## {title}\n\n{body}".strip(),
+                "is_fictional": is_fictional,
+                "_source_file": path.name,
+            })
+        if not out:
+            errors.append({"file": path.name, "reason": "не удалось выделить кейсы"})
         return out
+
+    # табличные файлы (csv/xlsx) — по строке на кейс
     for row in _iter_file_rows(profile_name, fs, path):
         case_id = row.get("case_id") or f"{path.stem}_{row['_source_row']}"
         text = row.get("description") or ""
