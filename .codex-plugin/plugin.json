@@ -1,0 +1,7 @@
+{
+  "name": "commercial-offer-plugin",
+  "version": "1.0.0",
+  "description": "Генерация персонализированных коммерческих предложений",
+  "skills": "./skills/",
+  "repository": "https://github.com/Practicum-Team/commercial-offer-plugin"
+}

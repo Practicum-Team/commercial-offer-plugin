@@ -111,3 +111,10 @@
 `{"event":"proposal-prepare","schema_hash":...,"ok":...,"document_path":...}`.
 При разборе инцидента сверять: был ли `profiles-commit` до этого, совпадает
 ли `profile_id`, нет ли ретраев без изменения `confirmed.json`.
+
+## Жизненный цикл run
+
+1. `runs-start` → `runs.insert`.
+2. `runs-finish` → `runs.update(result_kind, document_path)` 
+3. При `needs_clarification` — `runs-finish` тоже вызывается; следующий круг
+   начинается с нового `runs-start`.

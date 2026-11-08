@@ -82,6 +82,59 @@ class Case(Base):
     __table_args__ = (UniqueConstraint("profile_id", "case_id", name="uq_case"),)
 
 
+class Run(Base):
+    """Одна генерация КП: сквозная трассировка от запроса к результату."""
+    __tablename__ = "runs"
+    run_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(ForeignKey("profiles.profile_id"), index=True)
+    input_text: Mapped[str] = mapped_column(Text, nullable=False)   # что написал пользователь
+    input_json: Mapped[str] = mapped_column(Text, default="{}")     # request-schema.json
+    stage: Mapped[str] = mapped_column(String, nullable=False, default="received")
+    # received|searched|clarification|calculated|docx_created|refused
+    result_kind: Mapped[Optional[str]] = mapped_column(String)      # success|needs_clarification|refused
+    result_json: Mapped[Optional[str]] = mapped_column(Text)
+    document_path: Mapped[Optional[str]] = mapped_column(String)
+    created_at: Mapped[str] = mapped_column(String, nullable=False)
+    updated_at: Mapped[str] = mapped_column(String, nullable=False)
+    __table_args__ = (Index("ix_run_profile_created", "profile_id", "created_at"),)
+
+
+class RunEvent(Base):
+    """Вызов CLI в рамках run_id. Один вызов = одна строка."""
+    __tablename__ = "run_events"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    run_id: Mapped[str] = mapped_column(ForeignKey("runs.run_id"), index=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False)
+    command: Mapped[str] = mapped_column(String, nullable=False)     # cli subcommand
+    args_json: Mapped[str] = mapped_column(Text, default="{}")
+    ok: Mapped[int] = mapped_column(Integer, default=0)
+    exit_code: Mapped[int] = mapped_column(Integer, default=0)
+    output_json: Mapped[str] = mapped_column(Text, default="{}")     # stdout CLI
+    error: Mapped[Optional[str]] = mapped_column(Text)
+    duration_ms: Mapped[int] = mapped_column(Integer, default=0)
+    created_at: Mapped[str] = mapped_column(String, nullable=False)
+
+
+class ProfileLoad(Base):
+    """История загрузки профиля (документы + подтверждения)."""
+    __tablename__ = "profile_loads"
+    load_id: Mapped[str] = mapped_column(String, primary_key=True)
+    profile_id: Mapped[str] = mapped_column(String, nullable=False, index=True)
+    loaded_at: Mapped[str] = mapped_column(String, nullable=False)
+    schema_hash: Mapped[Optional[str]] = mapped_column(String)
+    ok: Mapped[int] = mapped_column(Integer, default=1)
+    note: Mapped[Optional[str]] = mapped_column(Text)
+
+
+class ProfileLoadFile(Base):
+    __tablename__ = "profile_load_files"
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    load_id: Mapped[str] = mapped_column(ForeignKey("profile_loads.load_id"), index=True)
+    filename: Mapped[str] = mapped_column(String, nullable=False)
+    kind: Mapped[Optional[str]] = mapped_column(String)              # catalog|prices|...
+    action: Mapped[Optional[str]] = mapped_column(String)            # copy|skip|keep
+    size_bytes: Mapped[Optional[int]] = mapped_column(Integer)
+    sha256: Mapped[Optional[str]] = mapped_column(String)
 # ---------- dataclasses для пайплайна импорта ----------
 
 KIND_CATALOG = "catalog"

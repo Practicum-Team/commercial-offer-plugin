@@ -15,13 +15,13 @@ from . import search, storage, validator, confirmations
 from .config import Config
 from .schemas import ProfileSchema
 from .proposal_pipeline import prepare_from_search
-
+from .instrumentation import instrumented, set_last_emitted
 
 CONFIG = Config.load()
 
 
 def _emit(payload: dict, code: int = 0) -> int:
-    # При перенаправлении в файл Windows может использовать cp1251 вместо UTF-8.
+    set_last_emitted(payload)
     if hasattr(sys.stdout, "reconfigure"):
         sys.stdout.reconfigure(encoding="utf-8")
     print(json.dumps(payload, ensure_ascii=False, indent=2, default=str))
@@ -321,115 +321,161 @@ def cmd_template_fields(args: argparse.Namespace) -> int:
         return _emit({"ok": False, "error": str(exc)}, code=1)
     return _emit({"ok": True, "fields": fields})
 
+
+def cmd_runs_start(args: argparse.Namespace) -> int:
+    run_id = getattr(args, "_new_run_id", None)
+    if not run_id:
+        return _emit({"ok": False, "error": "внутренняя ошибка: run_id не создан"}, code=3)
+
+    payload = None
+    if args.input_json:
+        try:
+            payload = json.loads(Path(args.input_json).read_text(encoding="utf-8"))
+        except Exception as exc:
+            return _emit({"ok": False, "error": f"input-json: {exc}"}, code=2)
+
+    db_url = _resolve_db_url(args)
+    res = storage.start_run(db_url, args.name, args.input_text, payload, run_id=run_id)
+    return _emit(res, code=0 if res["ok"] else 1)
+
+
+def cmd_runs_finish(args: argparse.Namespace) -> int:
+    payload = None
+    if args.result_json:
+        try:
+            payload = json.loads(Path(args.result_json).read_text(encoding="utf-8"))
+        except Exception as exc:
+            return _emit({"ok": False, "error": f"result-json: {exc}"}, code=2)
+
+    db_url = _resolve_db_url(args)
+    res = storage.finish_run(
+        db_url, args.run_id,
+        result_kind=args.result_kind,
+        result_json=payload,
+        document_path=args.document_path,
+    )
+    if res.get("ok"):
+        try:
+            args.config.clear_active_run(args.name, args.run_id)
+        except Exception as exc:
+            res["warning"] = f"active_run не очищен в config.json: {exc}"
+    return _emit(res, code=0 if res.get("ok") else 1)
+
+
+def cmd_runs_show(args: argparse.Namespace) -> int:
+    res = storage.get_run(_resolve_db_url(args), args.run_id)
+    if res is None:
+        return _emit({"ok": False, "error": "run_id не найден"}, code=1)
+    return _emit({"ok": True, **res})
+
+
+def cmd_profile_loads(args: argparse.Namespace) -> int:
+    loads = storage.list_profile_loads(_resolve_db_url(args), args.name)
+    return _emit({"ok": True, "profile": args.name, "loads": loads})
 # ---------- парсер ----------
 
 def build_parser() -> argparse.ArgumentParser:
     p = argparse.ArgumentParser(prog="commercial-offer")
     sub = p.add_subparsers(dest="cmd", required=True)
 
-    # --- жизненный цикл профиля (файлы) ---
-    sp = sub.add_parser("profiles-list", help="Список профилей")
-    sp.set_defaults(func=cmd_profiles_list)
+    def reg(name: str, func, help: str | None = None):
+        sp = sub.add_parser(name, help=help)
+        return sp
 
-    sp = sub.add_parser("profiles-use", help="Переключить активный профиль")
+    # --- файлы профиля ---
+    sp = reg("profiles-list", cmd_profiles_list, "Список профилей")
+    sp.set_defaults(func=instrumented("profiles-list")(cmd_profiles_list))
+
+    sp = reg("profiles-use", cmd_profiles_use, "Переключить активный профиль")
     sp.add_argument("name")
-    sp.set_defaults(func=cmd_profiles_use)
+    sp.set_defaults(func=instrumented("profiles-use")(cmd_profiles_use))
 
-    sp = sub.add_parser("profiles-check", help="Проверить файлы без копирования")
+    sp = reg("profiles-check", cmd_profiles_check, "Проверить файлы без копирования")
     sp.add_argument("file", nargs="+")
-    sp.set_defaults(func=cmd_profiles_check)
+    sp.set_defaults(func=instrumented("profiles-check")(cmd_profiles_check))
 
-    sp = sub.add_parser("profiles-load", help="Загрузить документы в профиль")
+    sp = reg("profiles-load", cmd_profiles_load, "Загрузить документы в профиль")
     sp.add_argument("name")
     sp.add_argument("file", nargs="+")
     sp.add_argument("--dir", help="Явный каталог назначения профиля")
-    sp.add_argument("--overwrite", choices=["yes", "no"], default=None,
-                    help="yes/no при коллизии имён; без флага — подтверждение у пользователя")
-    sp.set_defaults(func=cmd_profiles_load)
+    sp.add_argument("--overwrite", choices=["yes", "no"], default=None)
+    sp.set_defaults(func=instrumented("profiles-load")(cmd_profiles_load))
 
-    # --- импорт в SQLite (LLM-схема → валидация → commit) ---
-    sp = sub.add_parser("profiles-inspect",
-                        help="Отпечатки файлов + промпт для LLM")
+    # --- импорт в SQLite ---
+    sp = reg("profiles-inspect", cmd_profiles_inspect, "Отпечатки + промпт LLM")
     sp.add_argument("name")
     sp.add_argument("file", nargs="+")
-    sp.set_defaults(func=cmd_profiles_inspect)
+    sp.set_defaults(func=instrumented("profiles-inspect")(cmd_profiles_inspect))
 
-    sp = sub.add_parser("profiles-apply-schema",
-                        help="Проверить схему от LLM (назначения + field_map)")
-    sp.add_argument("name")
-    sp.add_argument("schema_file")
-    sp.add_argument("file", nargs="+")
-    sp.set_defaults(func=cmd_profiles_apply_schema)
+    sp = reg("profiles-apply-schema", cmd_profiles_apply_schema, "Проверить схему LLM")
+    sp.add_argument("name"); sp.add_argument("schema_file"); sp.add_argument("file", nargs="+")
+    sp.set_defaults(func=instrumented("profiles-apply-schema")(cmd_profiles_apply_schema))
 
-    sp = sub.add_parser("profiles-validate",
-                        help="Содержательные проверки (типы, дубли, ссылки)")
-    sp.add_argument("name")
-    sp.add_argument("schema_file")
-    sp.add_argument("file", nargs="+")
-    sp.set_defaults(func=cmd_profiles_validate)
+    sp = reg("profiles-validate", cmd_profiles_validate, "Содержательные проверки")
+    sp.add_argument("name"); sp.add_argument("schema_file"); sp.add_argument("file", nargs="+")
+    sp.set_defaults(func=instrumented("profiles-validate")(cmd_profiles_validate))
 
-    sp = sub.add_parser("profiles-commit",
-                        help="Загрузка в SQLite (требует успешной валидации)")
-    sp.add_argument("name")
-    sp.add_argument("schema_file")
-    sp.add_argument("file", nargs="+")
-    sp.add_argument("--db-url",
-                    help="Переопределить SQLite URL (по умолчанию profiles/<name>/profile.sqlite3)")
-    sp.add_argument("--profile-json",
-                    help="Путь к profile.json профиля (payload для таблицы profiles)")
-    sp.set_defaults(func=cmd_profiles_commit)
-
-    # --- добавления в build_parser() ---
-
-    # --- новые подкоманды в build_parser() ---
-
-    sp = sub.add_parser("profiles-confirm",
-                        help="Зафиксировать подтверждение пользователя по схеме")
-    sp.add_argument("name")
-    sp.add_argument("schema_file")
+    sp = reg("profiles-confirm", cmd_profiles_confirm, "Подтверждение схемы/полей/commit")
+    sp.add_argument("name"); sp.add_argument("schema_file")
     sp.add_argument("kind", choices=["schema", "fields", "commit"])
-    sp.add_argument("--yes", action="store_true",
-                    help="Пользователь подтвердил. Без этого флага записывается отказ.")
-    sp.add_argument("--note", default=None)
-    sp.set_defaults(func=cmd_profiles_confirm)
+    sp.add_argument("--yes", action="store_true"); sp.add_argument("--note", default=None)
+    sp.set_defaults(func=instrumented("profiles-confirm")(cmd_profiles_confirm))
 
-    # --- поиск по БД ---
-    sp = sub.add_parser("search-products", help="Поиск кандидатов products+prices")
-    sp.add_argument("name")
-    sp.add_argument("--currency", default=None)
-    sp.add_argument("--budget", default=None)
-    sp.add_argument("--purchase-date", default=None)
-    sp.add_argument("--category", default=None)
-    sp.add_argument("--db-url", default=None)
-    sp.set_defaults(func=cmd_search_products)
+    sp = reg("profiles-commit", cmd_profiles_commit, "Загрузка в SQLite")
+    sp.add_argument("name"); sp.add_argument("schema_file"); sp.add_argument("file", nargs="+")
+    sp.add_argument("--db-url", default=None); sp.add_argument("--profile-json", default=None)
+    sp.set_defaults(func=instrumented("profiles-commit")(cmd_profiles_commit))
 
-    sp = sub.add_parser("search-dump", help="Полный дамп products+prices (fallback)")
-    sp.add_argument("name")
-    sp.add_argument("--currency", default=None)
-    sp.add_argument("--db-url", default=None)
-    sp.set_defaults(func=cmd_search_dump)
+    # --- поиск ---
+    sp = reg("search-products", cmd_search_products, "Кандидаты products+prices")
+    sp.add_argument("name"); sp.add_argument("--currency", default=None)
+    sp.add_argument("--budget", default=None); sp.add_argument("--purchase-date", default=None)
+    sp.add_argument("--category", default=None); sp.add_argument("--db-url", default=None)
+    sp.add_argument("--run-id", default=None)
+    sp.set_defaults(func=instrumented("search-products")(cmd_search_products))
 
-    sp = sub.add_parser("search-rules", help="Правила по product_id / category / all")
-    sp.add_argument("name")
-    sp.add_argument("--product-id", action="append", default=[])
+    sp = reg("search-dump", cmd_search_dump, "Полный дамп products+prices")
+    sp.add_argument("name"); sp.add_argument("--currency", default=None)
+    sp.add_argument("--db-url", default=None); sp.add_argument("--run-id", default=None)
+    sp.set_defaults(func=instrumented("search-dump")(cmd_search_dump))
+
+    sp = reg("search-rules", cmd_search_rules, "Правила по product_id/category/all")
+    sp.add_argument("name"); sp.add_argument("--product-id", action="append", default=[])
     sp.add_argument("--category", action="append", default=[])
-    sp.add_argument("--check-discount", action="store_true",
-                    help="Вернуть все правила профиля (для проверки явной скидки)")
+    sp.add_argument("--check-discount", action="store_true")
+    sp.add_argument("--db-url", default=None); sp.add_argument("--run-id", default=None)
+    sp.set_defaults(func=instrumented("search-rules")(cmd_search_rules))
+
+    # --- КП ---
+    sp = reg("proposal-prepare", cmd_proposal_prepare, "Расчёт + DOCX")
+    sp.add_argument("search_results"); sp.add_argument("request_schema")
+    sp.add_argument("--output", required=True); sp.add_argument("--confirmed", default=None)
+    sp.add_argument("--run-id", default=None); sp.add_argument("--db-url", default=None)
+    sp.set_defaults(func=instrumented("proposal-prepare")(cmd_proposal_prepare))
+
+    sp = reg("template-fields", cmd_template_fields, "Плейсхолдеры template.docx")
+    sp.set_defaults(func=instrumented("template-fields")(cmd_template_fields))
+
+    # --- runs / loads ---
+    sp = reg("runs-start", cmd_runs_start, "Начать run")
+    sp.add_argument("name"); sp.add_argument("--input-text", required=True)
+    sp.add_argument("--input-json", default=None); sp.add_argument("--db-url", default=None)
+    sp.set_defaults(func=instrumented("runs-start")(cmd_runs_start))
+
+    sp = reg("runs-finish", cmd_runs_finish, "Закрыть run")
+    sp.add_argument("name"); sp.add_argument("run_id")
+    sp.add_argument("result_kind", choices=["success", "needs_clarification", "refused"])
+    sp.add_argument("--result-json", default=None); sp.add_argument("--document-path", default=None)
     sp.add_argument("--db-url", default=None)
-    sp.set_defaults(func=cmd_search_rules)
+    sp.set_defaults(func=instrumented("runs-finish")(cmd_runs_finish))
 
-    # в build_parser()
-    sp = sub.add_parser("proposal-prepare",
-                        help="Рассчитать и сгенерировать DOCX из search-results.json + request-schema.json")
-    sp.add_argument("search_results")   # путь к JSON
-    sp.add_argument("request_schema")   # путь к JSON
-    sp.add_argument("--output", required=True)
-    sp.add_argument("--confirmed", default=None, help="JSON с подтверждёнными полями")
-    sp.set_defaults(func=cmd_proposal_prepare)
+    sp = reg("runs-show", cmd_runs_show, "Трассировка run")
+    sp.add_argument("name"); sp.add_argument("run_id"); sp.add_argument("--db-url", default=None)
+    sp.set_defaults(func=instrumented("runs-show")(cmd_runs_show))
 
-    sp = sub.add_parser("template-fields",
-        help="Список плейсхолдеров {{...}} в template.docx профиля")
-    sp.set_defaults(func=cmd_template_fields)
+    sp = reg("profile-loads", cmd_profile_loads, "История загрузок профиля")
+    sp.add_argument("name"); sp.add_argument("--db-url", default=None)
+    sp.set_defaults(func=instrumented("profile-loads")(cmd_profile_loads))
 
     return p
 

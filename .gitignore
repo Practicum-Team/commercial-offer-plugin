@@ -228,3 +228,6 @@ search-results.json
 *.sqlite3
 audit.jsonl
 confirmations.json
+dumps
+outputs
+output
